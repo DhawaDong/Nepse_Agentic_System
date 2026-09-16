@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Run the pipeline</h2>
+  <p class="muted">Enter a NEPSE symbol, e.g. <code>NABIL</code>, <code>NHPC</code>, <code>HIDCL</code>.</p>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form class="analyze-form" method="POST" action="/analyze">
+    <div class="field">
+      <label for="target">NEPSE Symbol</label>
+      <input type="text" id="target" name="target" placeholder="NABIL" required>
+    </div>
+    <button type="submit">Analyze</button>
+  </form>
+  <div class="agent-pipeline">
+    <span>NEPSE + Macro data</span><span>News agents</span><span>Technical / Sector / Sentiment / Correlation</span>
+    <span>Verification</span><span>Deterministic scoring (BUY/HOLD/SELL)</span>
+    <span>Forecasting (XGBoost)</span><span>Risk</span><span>Decision agent (Groq LLM)</span>
+  </div>
+  <p class="muted" style="margin-top:14px;">
+    Also try <a class="back" href="/compare">comparing 2-3 stocks</a> or the
+    <a class="back" href="/screener">today's movers screener</a>.
+  </p>
+</div>
+
+<div class="card">
+  <h3>Recent runs</h3>
+  {% if recent %}
+  <table>
+    <tr><th>ID</th><th>Symbol</th><th>When</th></tr>
+    {% for r in recent %}
+    <tr><td>{{ r.id }}</td><td>{{ r.target }}</td><td>{{ r.created_at }}</td></tr>
+    {% endfor %}
+  </table>
+  {% else %}
+  <p class="muted">No runs yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

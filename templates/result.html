@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% set scoring = result.scoring %}
+{% set verification = result.verification %}
+{% block content %}
+<a class="back" href="/">&larr; New analysis</a>
+
+<div class="card">
+  <h2>{{ result.target }} <span class="muted" style="font-weight:400;">— {{ result.company_name }} (NEPSE)</span></h2>
+  {% if scoring.ok %}
+    <span class="badge rec-{{ scoring.recommendation|lower|replace(' ', '')|replace('/', '') }}">{{ scoring.recommendation }}</span>
+    <span class="badge medium">SCORE {{ scoring.final_score }}/100</span>
+    <span class="badge low">CONFIDENCE {{ scoring.confidence }}%</span>
+  {% endif %}
+  {% set risk = result.risk %}
+  {% if risk.ok %}
+    <span class="badge {{ risk.risk_level }}">{{ risk.risk_level|upper }} RISK</span>
+  {% endif %}
+  {% set status = result.raw.market_status %}
+  {% if status.ok %}
+    <span class="badge {{ 'low' if status.is_open else 'medium' }}">MARKET {{ 'OPEN' if status.is_open else 'CLOSED' }}</span>
+  {% endif %}
+  <p class="muted">Run #{{ run_id }}</p>
+  {% if scoring.recommendation_capped_by_liquidity %}
+    <p style="color: var(--warn);">⚠ Recommendation capped at HOLD/WATCH due to low trading liquidity.</p>
+  {% endif %}
+  {% if verification.warnings %}
+    <ul class="warning-list">
+      {% for w in verification.warnings %}<li>{{ w }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Decision agent report</h3>
+  <div class="report">{{ result.final_report }}</div>
+</div>
+
+<div class="grid">
+  <div class="card chart-card">
+    <h3>Price history {% if result.raw.price_history.ok %}<span class="muted" style="font-weight:400;">(with 20/50-day SMA)</span>{% endif %}</h3>
+    {% if result.raw.price_history.ok %}
+      <canvas id="priceChart"></canvas>
+    {% else %}
+      <p class="muted">{{ result.raw.price_history.error }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card chart-card">
+    <h3>Score breakdown</h3>
+    {% if scoring.ok %}
+      <canvas id="scoreChart"></canvas>
+    {% else %}
+      <p class="muted">{{ scoring.error }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <h3>Technical</h3>
+    {% if result.analysis.technical.ok %}
+      <table>
+        <tr><td>Last price</td><td>{{ result.analysis.technical.last_price }}</td></tr>
+        <tr><td>SMA 20 / 50</td><td>{{ result.analysis.technical.sma_20 }} / {{ result.analysis.technical.sma_50 }}</td></tr>
+        <tr><td>RSI (14)</td><td>{{ result.analysis.technical.rsi_14 }}</td></tr>
+        <tr><td>Trend</td><td>{{ result.analysis.technical.trend }}</td></tr>
+        <tr><td>Period return</td><td>{{ result.analysis.technical.period_return_pct }}%</td></tr>
+      </table>
+    {% else %}
+      <p class="muted">{{ result.analysis.technical.error }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>Forecast (5-step)</h3>
+    {% if result.forecast.ok %}
+      <table>
+        <tr><td>Model</td><td>{{ result.forecast.model }}</td></tr>
+        <tr><td>Predicted next</td><td>{{ result.forecast.predicted_next }}</td></tr>
+        <tr><td>Path</td><td>{{ result.forecast.predicted_path }}</td></tr>
+        <tr><td>Confidence</td><td>{{ result.forecast.confidence }}</td></tr>
+      </table>
+    {% else %}
+      <p class="muted">{{ result.forecast.error }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>Risk metrics</h3>
+    {% if result.risk.ok %}
+      <table>
+        {% for k, v in result.risk.metrics.items() %}
+        <tr><td>{{ k }}</td><td>{{ v }}</td></tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="muted">{{ result.risk.error }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>Sentiment</h3>
+    {% if result.analysis.sentiment %}
+      <p><strong>{{ result.analysis.sentiment.label }}</strong> (score: {{ result.analysis.sentiment.score }})</p>
+      <p class="muted">{{ result.analysis.sentiment.rationale }}</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <h3>Sector context</h3>
+  <p>{{ result.analysis.sector.commentary if result.analysis.sector.ok else result.analysis.sector.error }}</p>
+</div>
+
+<div class="card">
+  <h3>NEPSE market breadth today</h3>
+  {% set breadth = result.raw.market_breadth %}
+  {% if breadth.ok %}
+    <table>
+      <tr><td>Advancers</td><td>{{ breadth.advancers }}</td></tr>
+      <tr><td>Decliners</td><td>{{ breadth.decliners }}</td></tr>
+      <tr><td>Unchanged</td><td>{{ breadth.unchanged }}</td></tr>
+      <tr><td>Average % change</td><td>{{ breadth.avg_percent_change }}</td></tr>
+      <tr><td>Total turnover</td><td>{{ breadth.total_turnover }}</td></tr>
+    </table>
+  {% else %}
+    <p class="muted">{{ breadth.error }}</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>Raw agent data (debug)</h3>
+  <details><summary class="muted">Expand</summary>
+    <pre style="white-space:pre-wrap; font-size:0.8rem;">{{ result.raw }}</pre>
+  </details>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const rootStyles = getComputedStyle(document.documentElement);
+const cAccent = rootStyles.getPropertyValue('--accent').trim();
+const cAccent2 = rootStyles.getPropertyValue('--accent-2').trim();
+const cWarn = rootStyles.getPropertyValue('--warn').trim();
+const cMuted = rootStyles.getPropertyValue('--muted').trim();
+const cBorder = rootStyles.getPropertyValue('--border').trim();
+const cText = rootStyles.getPropertyValue('--text').trim();
+
+Chart.defaults.color = cMuted;
+Chart.defaults.borderColor = cBorder;
+
+function rollingMean(arr, window) {
+  const out = [];
+  for (let i = 0; i < arr.length; i++) {
+    if (i < window - 1) { out.push(null); continue; }
+    const slice = arr.slice(i - window + 1, i + 1);
+    out.push(slice.reduce((a, b) => a + b, 0) / window);
+  }
+  return out;
+}
+
+{% if result.raw.price_history.ok %}
+const dates = {{ result.raw.price_history.dates | tojson }};
+const closes = {{ result.raw.price_history.close | tojson }};
+new Chart(document.getElementById('priceChart'), {
+  type: 'line',
+  data: {
+    labels: dates,
+    datasets: [
+      { label: 'Close', data: closes, borderColor: cAccent2, borderWidth: 2, pointRadius: 0, tension: 0.15 },
+      { label: 'SMA 20', data: rollingMean(closes, 20), borderColor: cWarn, borderWidth: 1.5, pointRadius: 0, borderDash: [4,3] },
+      { label: 'SMA 50', data: rollingMean(closes, 50), borderColor: cAccent, borderWidth: 1.5, pointRadius: 0, borderDash: [4,3] },
+    ]
+  },
+  options: {
+    responsive: true,
+    interaction: { mode: 'index', intersect: false },
+    scales: { x: { ticks: { maxTicksLimit: 8 } } },
+    plugins: { legend: { labels: { color: cText } } }
+  }
+});
+{% endif %}
+
+{% if scoring.ok %}
+const catScores = {{ scoring.category_scores | tojson }};
+const labels = Object.keys(catScores).filter(k => catScores[k] !== null);
+const values = labels.map(k => catScores[k]);
+new Chart(document.getElementById('scoreChart'), {
+  type: 'bar',
+  data: {
+    labels: labels.map(l => l.charAt(0).toUpperCase() + l.slice(1)),
+    datasets: [{ label: 'Score (0-100)', data: values, backgroundColor: cAccent2, borderRadius: 4 }]
+  },
+  options: {
+    indexAxis: 'y',
+    responsive: true,
+    scales: { x: { min: 0, max: 100 } },
+    plugins: { legend: { display: false } }
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

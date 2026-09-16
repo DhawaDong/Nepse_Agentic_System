@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Compare stocks</h2>
+  <p class="muted">Enter 2-3 NEPSE symbols, comma-separated (e.g. <code>NABIL,EBL,SCB</code>). This runs the full data/analysis pipeline for each symbol but skips the LLM report for speed.</p>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form class="analyze-form" method="POST" action="/compare">
+    <div class="field">
+      <label for="symbols">Symbols</label>
+      <input type="text" id="symbols" name="symbols" placeholder="NABIL,EBL,SCB" required style="min-width:260px;">
+    </div>
+    <button type="submit">Compare</button>
+  </form>
+</div>
+
+{% if results %}
+<div class="card">
+  <h3>Comparison</h3>
+  <table>
+    <tr>
+      <th>Metric</th>
+      {% for r in results %}<th>{{ r.target }}</th>{% endfor %}
+    </tr>
+    <tr><td>Company</td>{% for r in results %}<td>{{ r.company_name }}</td>{% endfor %}</tr>
+    <tr><td>Last price</td>{% for r in results %}<td>{{ r.analysis.technical.last_price if r.analysis.technical.ok else '—' }}</td>{% endfor %}</tr>
+    <tr><td>Sector</td>{% for r in results %}<td>{{ r.analysis.sector.sector if r.analysis.sector.ok else '—' }}</td>{% endfor %}</tr>
+    <tr><td>Recommendation</td>{% for r in results %}<td><span class="badge rec-{{ r.scoring.recommendation|lower|replace(' ', '')|replace('/', '') if r.scoring.ok else 'insufficientdata' }}">{{ r.scoring.recommendation if r.scoring.ok else 'N/A' }}</span></td>{% endfor %}</tr>
+    <tr><td>Score</td>{% for r in results %}<td>{{ r.scoring.final_score if r.scoring.ok else '—' }}</td>{% endfor %}</tr>
+    <tr><td>Confidence</td>{% for r in results %}<td>{{ r.scoring.confidence if r.scoring.ok else '—' }}%</td>{% endfor %}</tr>
+    <tr><td>Risk level</td>{% for r in results %}<td>{{ r.risk.risk_level|upper if r.risk.ok else '—' }}</td>{% endfor %}</tr>
+    <tr><td>Volatility (ann. %)</td>{% for r in results %}<td>{{ r.risk.metrics.volatility_annualized_pct if r.risk.ok else '—' }}</td>{% endfor %}</tr>
+    <tr><td>RSI (14)</td>{% for r in results %}<td>{{ r.analysis.technical.rsi_14 if r.analysis.technical.ok else '—' }}</td>{% endfor %}</tr>
+    <tr><td>Trend</td>{% for r in results %}<td>{{ r.analysis.technical.trend if r.analysis.technical.ok else '—' }}</td>{% endfor %}</tr>
+    <tr><td>Period return %</td>{% for r in results %}<td>{{ r.analysis.technical.period_return_pct if r.analysis.technical.ok else '—' }}</td>{% endfor %}</tr>
+    <tr><td>Sentiment</td>{% for r in results %}<td>{{ r.analysis.sentiment.label }} ({{ r.analysis.sentiment.score }})</td>{% endfor %}</tr>
+    <tr><td>Forecast (next)</td>{% for r in results %}<td>{{ r.forecast.predicted_next if r.forecast.ok else '—' }}</td>{% endfor %}</tr>
+  </table>
+</div>
+
+<div class="card chart-card">
+  <h3>Score comparison</h3>
+  <canvas id="compareChart"></canvas>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if results %}
+<script>
+const rootStyles = getComputedStyle(document.documentElement);
+Chart.defaults.color = rootStyles.getPropertyValue('--muted').trim();
+Chart.defaults.borderColor = rootStyles.getPropertyValue('--border').trim();
+const palette = [rootStyles.getPropertyValue('--accent-2').trim(), rootStyles.getPropertyValue('--accent').trim(), rootStyles.getPropertyValue('--warn').trim()];
+
+const targets = {{ results | map(attribute='target') | list | tojson }};
+const scores = {{ results | map(attribute='scoring') | map(attribute='final_score') | list | tojson }};
+new Chart(document.getElementById('compareChart'), {
+  type: 'bar',
+  data: {
+    labels: targets,
+    datasets: [{ label: 'Final score (0-100)', data: scores, backgroundColor: targets.map((_, i) => palette[i % palette.length]), borderRadius: 4 }]
+  },
+  options: { responsive: true, scales: { y: { min: 0, max: 100 } }, plugins: { legend: { display: false } } }
+});
+</script>
+{% endif %}
+{% endblock %}

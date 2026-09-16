@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="card">
+  <h2>Today's movers</h2>
+  <p class="muted">
+    Built directly from NEPSE's current snapshot (price, % change, volume) - no historical
+    fetch per symbol, so this loads fast even with 250+ listed securities. Click any symbol
+    for the full technical/scoring/decision-agent read.
+  </p>
+</div>
+
+<style>
+  .link-btn { background: none; border: none; color: var(--accent-2); font-size: 0.9rem; cursor: pointer; padding: 0; font-family: inherit; }
+  .link-btn:hover { text-decoration: underline; }
+</style>
+
+<div class="grid">
+  <div class="card">
+    <h3>Top gainers</h3>
+    {% if movers.ok %}
+      <table>
+        <tr><th>Symbol</th><th>LTP</th><th>% change</th></tr>
+        {% for g in movers.gainers %}
+        <tr>
+          <td>
+            <form method="POST" action="/analyze" style="margin:0;">
+              <input type="hidden" name="target" value="{{ g.symbol }}">
+              <button type="submit" class="link-btn">{{ g.symbol }}</button>
+            </form>
+          </td>
+          <td>{{ g.ltp }}</td>
+          <td style="color: var(--accent);">+{{ g.percent_change }}%</td>
+        </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="muted">{{ movers.error }}</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>Top losers</h3>
+    {% if movers.ok %}
+      <table>
+        <tr><th>Symbol</th><th>LTP</th><th>% change</th></tr>
+        {% for l in movers.losers %}
+        <tr>
+          <td>
+            <form method="POST" action="/analyze" style="margin:0;">
+              <input type="hidden" name="target" value="{{ l.symbol }}">
+              <button type="submit" class="link-btn">{{ l.symbol }}</button>
+            </form>
+          </td>
+          <td>{{ l.ltp }}</td>
+          <td style="color: var(--danger);">{{ l.percent_change }}%</td>
+        </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="muted">{{ movers.error }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
