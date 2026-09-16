@@ -95,7 +95,18 @@
     </nav>
   </header>
   {% block content %}{% endblock %}
-  <footer>@Nepse-Agentic-System: <br> Note-Data from free/unofficial sources. Not financial advice.</footer>
+  <footer>
+    <table style="width:100%;">
+        <tr>
+            <td style="text-align:left;">
+                @Nepse-Agentic-System
+            </td>
+            <td style="text-align:right;">
+                Note: Data from free/unofficial sources. Not financial advice.
+            </td>
+        </tr>
+    </table>
+</footer>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 {% block scripts %}{% endblock %}
