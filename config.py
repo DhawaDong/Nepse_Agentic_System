@@ -10,8 +10,8 @@ class Config:
     # Groq's free-tier catalog changes often. Override via env var without
     # touching code. "llama-3.3-70b-versatile" is a good general default;
     # "llama-3.1-8b-instant" is faster/cheaper for high-volume agent calls.
-    GROQ_MODEL_HEAVY = os.getenv("GROQ_MODEL_HEAVY", "llama-3.3-70b-versatile")
-    GROQ_MODEL_FAST = os.getenv("GROQ_MODEL_FAST", "llama-3.1-8b-instant")
+    GROQ_MODEL_HEAVY = os.getenv("GROQ_MODEL_HEAVY", "openai/gpt-oss-120b")  #"llama-3.3-70b-versatile")
+    GROQ_MODEL_FAST = os.getenv("GROQ_MODEL_FAST", "openai/gpt-oss-20b")  #"llama-3.1-8b-instant")
 
     # ---- NEPSE data source ----
     # NEPSE has no official public API. This project reads a free,
